@@ -258,9 +258,9 @@
 			$form->appendChild($label);
 			
 			// generate a random noun
-			$password = General::generatePassword();
-			$password = preg_replace('/[0-9]/', '', $password); // remove numbers
-			preg_match('/([A-Z][a-z]+){1,}/', $password, $nouns); // split into separate words based on capitals
+			$nouns = array(
+				'Cats','Dogs','Weasels','Birds','Worms','Bugs','Pigs','Monkeys','Pirates','Aardvarks','Men','Women'
+			);
 			$noun = strtolower(end($nouns));
 			
 			$label = new XMLElement('label', '<span>'.__('Query').'</span>', array('class' => 'keywords'));
