@@ -238,7 +238,7 @@
 				'data-dateMax' => date('Y-m-d', strtotime($range->max)),
 				'class' => 'label date-range'
 			));
-			$label->appendChild(new XMLElement('span', _('Date range')));
+			$label->appendChild(new XMLElement('span', __('Date range')));
 			$label->appendChild(new XMLElement('input', NULL, array(
 				'type' => 'text',
 				'placeholder' => __('From'),
