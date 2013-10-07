@@ -53,6 +53,7 @@ class Elastica_ResultSet implements Iterator, Countable
         $this->_response = $response;
         $result = $response->getData();
         $this->_totalHits = $result['hits']['total'];
+		$this->_maxScore = isset($result['hits']['max_score']) ? $result['hits']['max_score'] : 0;
         $this->_took = isset($result['took']) ? $result['took'] : 0;
         if (isset($result['hits']['hits'])) {
             foreach ($result['hits']['hits'] as $hit) {
@@ -114,6 +115,16 @@ class Elastica_ResultSet implements Iterator, Countable
     {
         return (int) $this->_took;
     }
+	
+	/**
+	 * Returns the max score of the results found
+	 *
+	 * @return float Max Score
+	 */
+	public function getMaxScore()
+	{
+	    return (float) $this->_maxScore;
+	}
 
     /**
      * Returns response object
