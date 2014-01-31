@@ -93,14 +93,14 @@ Class ElasticSearch {
 		$types = array();
 		foreach($sm->fetch() as $section) {
 			
-			$elasticsearch_mapping_file = sprintf('%s/elasticsearch/mappings/%s.json', WORKSPACE, preg_replace('/-/', '_', $section->get('handle')));
-			$symphony_mapping_file = sprintf('%s/elasticsearch/mappings/%s.php', WORKSPACE, preg_replace('/-/', '_', $section->get('handle')));
+			$elasticsearch_mapping_file = sprintf('%s/elasticsearch/mappings/%s.json', WORKSPACE, Extension_Elasticsearch::createHandle($section->get('handle')));
+			$symphony_mapping_file = sprintf('%s/elasticsearch/mappings/%s.php', WORKSPACE, Extension_Elasticsearch::createHandle($section->get('handle')));
 			
 			// no mapping, no valid type
 			if(!file_exists($elasticsearch_mapping_file)) continue;
 			
 			require_once($symphony_mapping_file);
-			$symphony_mapping_classname = sprintf('elasticsearch_%s', preg_replace('/-/', '_', $section->get('handle')));
+			$symphony_mapping_classname = sprintf('elasticsearch_%s', Extension_Elasticsearch::createHandle($section->get('handle')));
 			$symphony_mapping_class = new $symphony_mapping_classname;
 			
 			$elasticsearch_mapping_json = file_get_contents($elasticsearch_mapping_file);

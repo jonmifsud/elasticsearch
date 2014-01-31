@@ -51,7 +51,7 @@
 			parent::view(FALSE);
 
 			if(isset($this->mode)) {
-				$section = preg_replace('/-/', '_', $this->mode);
+				$section = Extension_Elasticsearch::createHandle($this->mode);
 				header('Content-Type: application/json');
 				echo file_get_contents(WORKSPACE . '/elasticsearch/mappings/' . $section . '.json');
 				die;

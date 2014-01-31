@@ -190,7 +190,18 @@
 				ElasticSearch::deleteEntry($entry_id);
 			}
 		}
-		
+
+		/**
+		 * Given a section handle, this function returns the handle required
+		 * for retreiving the mapping and data file
+		 *
+		 * @param string $section_handle
+		 * @return string
+		 */
+		public static function createHandle($section_handle) {
+			return preg_replace('/-/', '_', $section_handle);
+		}
+
 		public function appendPreferences($context) {
 
 			$config = Symphony::Configuration()->get('elasticsearch');
@@ -198,7 +209,6 @@
 			$fieldset = new XMLElement('fieldset');
 			$fieldset->setAttribute('class', 'settings');
 			$fieldset->appendChild(new XMLElement('legend', 'ElasticSearch'));
-
 
 			$group = new XMLElement('div');
 			$group->setAttribute('class', 'group');
@@ -258,8 +268,7 @@
 			));
 			
 			$fieldset->appendChild($group);
-			
-							
+
 			$context['wrapper']->appendChild($fieldset);
 			
 		}
@@ -269,7 +278,7 @@
 			
 			$index_to_delete = NULL;
 			$index_to_create = NULL;
-			
+
 			// index name has changed, so delete the original and create new
 			if($settings['index-name'] !== $settings['index_name_original']) {
 				$index_to_delete = $settings['index_name_original'];
@@ -296,18 +305,22 @@
 				ElasticSearch::flush();
 				
 			}
-			
+
+			// Get index (or attempt to), otherwise create it
+			// instantiate extension's ES helper class
+			ElasticSearch::init(
+				$settings['host'],
+				$settings['index-name'],
+				$settings['username'],
+				$settings['password']
+			);
+			$index = ElasticSearch::getClient()->getIndex($settings['index-name']);
+			if($index->exists() === false) {
+				$index_to_create = $settings['index-name'];
+			}
+
+			// create new index
 			if(!empty($index_to_create)) {
-				
-				// instantiate extension's ES helper class
-				ElasticSearch::init(
-					$settings['host'],
-					$index_to_create,
-					$settings['username'],
-					$settings['password']
-				);
-				
-				// create new index
 				$index = ElasticSearch::getClient()->getIndex($index_to_create);
 				
 				$index_settings_file = WORKSPACE . '/elasticsearch/index.json';
@@ -329,7 +342,4 @@
 			unset($context['settings']['elasticsearch']['index_name_original']);
 			
 		}
-		
-		
-		
 	}
