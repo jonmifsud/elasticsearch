@@ -1,8 +1,8 @@
 # ElasticSearch
 
-* Version: 0.4
-* Author: [Nick Dunn](http://nick-dunn.co.uk), [Symphony Community](https://github.com/symphonists)
-* Build Date: 2012-03-28
+* Version: 0.5
+* Author: [Nick Dunn](http://nick-dunn.co.uk), [Symphony Community](https://github.com/symphonists), [Jon Mifsud](https://jonmifsud.com)
+* Build Date: 2014-07-30
 * Requirements: Symphony 2.3.x
 
 ## Description
