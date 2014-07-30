@@ -320,16 +320,10 @@ The XML returned from this data source looks like this:
 	<elasticsearch took="54ms" max-score="0.7293">
 		<keywords>foo bar</keywords>
 		<pagination total-entries="5" total-pages="1" entries-per-page="20" current-page="1" />
-		<facets>
-			<facet handle="filtered-sections">
-				<term handle="articles" entries="3" active="yes">Articles</term>
-				<term handle="comments" entries="2" active="yes">Comments</term>
-			</facet>
-			<facet handle="all-sections">
-				<term handle="articles" entries="100" active="yes">Articles</term>
-				<term handle="comments" entries="391" active="yes">Comments</term>
-			</facet>
-		</facets>
+		<aggregations>
+			<aggregation handle="articles" entries="3" active="yes">Articles</aggregation>
+			<aggregation handle="comments" entries="2" active="yes">Comments</aggregation>
+		</aggregations>
 		<entries>
 			<entry id="2" section="articles" score="0.7293">
 				<highlight field="title">My favourite words are <strong class="highlight">foo</strong> and <strong class="highlight">bar</strong>, but don't tell fred!</highlight>
@@ -341,7 +335,7 @@ The XML returned from this data source looks like this:
 		</entries>
 	</elasticsearch>
 
-The query returns two [facets](http://www.elasticsearch.org/guide/reference/api/search/facets/) which are used as a breakdown of entries across sections. `filtered-sections` lists the sections for which entries were found, and how many. `all-sections` lists all sections and how many entries, regardless of the search query. The `@active` attribute is `yes` if the search is running on that section:
+Facets used in the previous version had been deprecated, as of this versions aggregations are being made available instead. A single aggregation is being made available which gives a breakdown of how the resulting entries were spread across the seactions. The `@active` attribute is `yes` if the search is running on that section:
 
 * if `?sections=articles,comments` is passed on the querystring then these sections will be used
 * if not, the `default-sections` list from Symphony's `manifest/config.php` file will be used

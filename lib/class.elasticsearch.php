@@ -1,11 +1,20 @@
 <?php
 
-function __autoload_elastica ($class) {
-	$path = str_replace('_', '/', $class);
-	$load = EXTENSIONS . '/elasticsearch/lib/Elastica/lib/' . $path . '.php';
-	if (file_exists($load)) require_once($load);
-}
-spl_autoload_register('__autoload_elastica');
+// function __autoload_elastica ($class) {
+// 	$path = str_replace('\\', '/', $class);
+// 	$load = EXTENSIONS . '/elasticsearch/lib/Elastica/lib/' . $path . '.php';
+// 	if (file_exists($load)) require_once($load);
+// }
+// spl_autoload_register('__autoload_elastica');
+
+require 'vendor/autoload.php';
+
+// function __autoload_elasticsearch ($class) {
+// 	$path = str_replace('\\', '/', $class);
+// 	$load = EXTENSIONS . '/elasticsearch/lib/' . $path . '.php';
+// 	if (file_exists($load)) require_once($load);
+// }
+// spl_autoload_register('__autoload_elasticsearch');
 
 require_once(TOOLKIT . '/class.sectionmanager.php');
 
@@ -36,21 +45,35 @@ Class ElasticSearch {
 		}
 		
 		try {
-			$client = new Elastica_Client(array('url' => $host));
+			$params = array(
+				'hosts' => array($host),
+				// 'index' => $index_name
+			);
 			if(!empty($username) && !empty($password)) {
-				$client->addHeader('Authorization', 'Basic ' . base64_encode($username . ':' . $password));
+				$params['connectionParams']['auth'] = array(
+				    $username,
+				    $password,
+				    'Basic' 
+				);
 			}
-			$client->getStatus();
+			$client = new Elasticsearch\Client($params);
+			$client->ping();
 		} catch (Exception $e) {
 			throw new Exception('ElasticSearch client: ' . $e->getMessage());
 		}
 		
-		$index = $client->getIndex($index_name);
-		
-		if($auto_create_index) {
-			//if(!$index->exists()) $index->create(array(), TRUE);
+		// $index = $client->indices()->get($index_name);
+		$index = $index_name;
+
+		$indexParams['index']  = $index_name;
+		//$auto_create_index && 
+		if(!$client->indices()->exists($indexParams)) {			
+			// $indexParams['body']['settings']['number_of_shards']   = 3;
+			// $indexParams['body']['settings']['number_of_replicas'] = 2;
+			$index = $client->indices()->create($indexParams);
 		}
 		
+
 		self::$client = $client;
 		self::$index = $index;
 	}
@@ -86,9 +109,10 @@ Class ElasticSearch {
 		
 		$sm = new SectionManager(Symphony::Engine());
 		
-		$get_mappings = self::getIndex()->request('_mapping', Elastica_Request::GET, array());
-		$all_mappings = $get_mappings->getData();
-		self::$mappings = reset($all_mappings);
+		$get_mappings = self::$client->indices()->getMapping(array('index'=>self::$index));
+		// var_dump($get_mappings);die;
+		// $all_mappings = $get_mappings[$index]; //= $get_mappings->getData();
+		self::$mappings = $get_mappings[self::$index]['mappings'];//reset($all_mappings);
 		
 		$types = array();
 		foreach($sm->fetch() as $section) {
@@ -113,7 +137,10 @@ Class ElasticSearch {
 			$fields = array();
 			foreach($mapped_fields as $field => $mapping) $fields[] = $field;
 			
-			$type = self::getIndex()->getType($section->get('handle'));
+			// var_dump(self::$mappings);die;
+
+			// $type = self::getIndex()->getType($section->get('handle'));
+			$type = $section->get('handle');
 			if(!isset(self::$mappings[$section->get('handle')])) $type = NULL;
 			
 			$types[$section->get('handle')] = (object)array(
@@ -134,16 +161,25 @@ Class ElasticSearch {
 		
 		$local_type = self::getTypeByHandle($handle);
 		$mapping = json_decode($local_type->mapping_json, TRUE);
+
+		var_dump($mapping);
 		
-		$type = new Elastica_Type(self::getIndex(), $handle);
+		$type = new Elastica\Type(self::getIndex(), $handle);
+
+		echo('<br/><br/>');
+		var_dump($type);
 		
-		$type_mapping = new Elastica_Type_Mapping($type);
+		$type_mapping = new Elastica\Type\Mapping($type);
 		foreach($mapping[$handle] as $key => $value) {
 			$type_mapping->setParam($key, $value);
 		}
+
+		echo('<br/><br/>');
+		var_dump($type_mapping);
+		echo('<br/><br/>');
 		
-		$type->setMapping($type_mapping);
-		self::getIndex()->refresh();
+		var_dump( $type->setMapping($type_mapping) );//die;
+		self::$client->indices()->refresh(array('index'=>self::$index));
 	}
 	
 	public static function indexEntry($entry, $section=NULL) {
@@ -175,17 +211,18 @@ Class ElasticSearch {
 		$data = $type->mapping_class->mapData($data, $entry);
 		
 		if($data) {
-			$document = new Elastica_Document($entry->get('id'), $data);
-			try {
-				$doc = $type->type->addDocument($document);
-			} catch(Exception $ex) {
-				
-			}
+			$params = array(
+				'index' => self::$index,
+				'type' => $section->get('handle'), //$type,
+				'id' => $entry->get('id'),
+				'body' => $data
+			);
+			self::$client->index($params);
 		} else {
 			self::deleteEntry($entry, $section);
 		}
 		
-		self::getIndex()->refresh();
+		self::$client->indices()->refresh(array('index'=>self::$index));
 		
 	}
 	
@@ -210,7 +247,7 @@ Class ElasticSearch {
 			$type->type->deleteById($entry->get('id'));
 		} catch(Exception $ex) { }
 		
-		self::getIndex()->refresh();
+		self::$client->indices()->refresh(array('index'=>self::$index));
 	}
 	
 	/* 

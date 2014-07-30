@@ -49,42 +49,50 @@
 			if($params->{'language'} === NULL && count($params->{'default-language'})) {
 				$params->{'language'} = $params->{'default-language'};
 			}
-			
+
 			// include this extension's own library
 			ElasticSearch::init();
 			
+			// var_dump($params->keywords);die;
+			//need to explode keywords keep quoted terms together & insert AND between the rest
+
+
+
 			// a query_string search type in ES accepts common (Lucene) search syntax such as
 			// prefixing terms with +/- and surrounding exact phrases with quotes
-			$query_querystring = new Elastica_Query_QueryString();
+			/*$query_querystring = new Elastica_Query_QueryString();
 			// all terms are required
 			$query_querystring->setDefaultOperator('AND');
 			// pass in keywords
-			$query_querystring->setQueryString($params->keywords);
+			$query_querystring->setQueryString($params->keywords);*/
 			// only apply the search to fields mapped as multi-type with a sub-type named "symphony_fulltext"
 			// this allows us to exclude fields from this generic full-site search but search them elsewhere
+			$fields = array();
 			if($params->{'language'}) {
-				$fields = array();
 				foreach($params->{'language'} as $language) {
 					$fields[] = '*_' . $language . '.symphony_fulltext';
 				}
-				$query_querystring->setFields($fields);
+				// $query_querystring->setFields($fields);
 			} else {
-				$query_querystring->setFields(array('*.symphony_fulltext'));
+				// $query_querystring->setFields(array('*.symphony_fulltext'));
+				$fields = array('*.symphony_fulltext');
 			}
 			
-			// create the parent query object (a factory) into which the query_string is passed
-			$query = new Elastica_Query($query_querystring);
-			$query->setLimit($params->{'per-page'});
-			// TODO: check this. should it be + 1?
-			$query->setFrom($params->{'per-page'} * ($params->{'current-page'} - 1));
-			$query->setSort(array($params->{'sort'} => $params->{'direction'}));
+			$elasticParams = array(
+				'index' => ElasticSearch::$index,
+				'size' => $params->{'per-page'},
+				'from' => $params->{'per-page'} * ($params->{'current-page'} - 1),
+
+				'q' => $params->keywords,
+				"default_operator" => "AND",
+				"fields" => implode(',', $fields),
+			);
+
+			if (!empty($params->{'sort'}))
+				if ($params->{'sort'} == '_score') $elasticParams['sort'] = array($params->{'sort'});
+				else $elasticParams['sort'] = array($params->{'sort'} => $params->{'direction'});
 			
-			// build a search object, this wraps an Elastica_Client and handles requests to and from the ElasticSearch server
-			$search = new Elastica_Search(ElasticSearch::getClient());
-			// search on our site index only (in case the server is running multiple indexes)
-			$search->addIndex(ElasticSearch::getIndex());
-			
-			// create a new facet on the entry _type (section handle). this will return a list
+	/*		// create a new facet on the entry _type (section handle). this will return a list
 			// of sections in which the matching entries reside, and a count of matches in each
 			$facet = new Elastica_Facet_Terms('filtered-sections');
 			$facet->setField('_type');
@@ -97,7 +105,7 @@
 			$query_all = new Elastica_Query();
 			$facet = new Elastica_Facet_Terms('all-sections');
 			$facet->setField('_type');
-			$query_all->addFacet($facet);
+			$query_all->addFacet($facet);*/
 			
 			// build an array of all valid section handles that have mappings
 			$all_mapped_sections = array();
@@ -124,23 +132,34 @@
 					$sections[] = $handle;
 				}
 			}
+
+			$elasticParams['type'] = implode(',', $sections);
 			
-			// a filter is an additional set of filtering that can be added to a query. filters are run
-			// after the query has executed, so run over the resultset and remove documents that don't
-			// match the criteria. they are fast and are cached by ES. we want to restrict the search
-			// results to within the specified sections only, so we add a filter on the _type (section handle)
-			// field. the filter is of type "terms" (an array of exact-match strings)
-			$filter = new Elastica_Filter_Terms('_type');
+			// // a filter is an additional set of filtering that can be added to a query. filters are run
+			// // after the query has executed, so run over the resultset and remove documents that don't
+			// // match the criteria. they are fast and are cached by ES. we want to restrict the search
+			// // results to within the specified sections only, so we add a filter on the _type (section handle)
+			// // field. the filter is of type "terms" (an array of exact-match strings)
+			// $filter = new Elastica_Filter_Terms('_type');
 			
 			// build an array of field handles which should be highlighted in search results, used for building
 			// the excerpt on results pages. a field is marked as highlightable by giving it a "symphony_fulltext"
 			// field in the section mappings
 			$highlights = array();
+			$aggs = array();
 			
 			// iterate over each valid section, adding it as a filter and finding any highlighted fields within
 			foreach($sections as $section) {				
 				// add these sections to the entry search
-				$filter->addTerm($section);
+				/*$filter->addTerm($section);*/
+				$aggs[$section] = array(
+					'filter' => array(
+						'type' => array('value'=>$section),
+						// 'aggs' => array(),
+					), 
+				);
+
+
 				// read the section's mapping JSON from disk
 				$mapping = json_decode(ElasticSearch::getTypeByHandle($section)->mapping_json, FALSE);
 				// find fields that have symphony_highlight
@@ -151,11 +170,12 @@
 			}
 			
 			// add the section filter to both queries (keyword search and the all entries facet search)
-			$query->setFilter($filter);
-			$query_all->setFilter($filter);
+			/*$query->setFilter($filter);
+			$query_all->setFilter($filter);*/
 			
 			// configure highlighting for the keyword search
-			$query->setHighlight(array(
+			// var_dump($highlights);die;
+			$elasticParams['body']['highlight'] = array(
 				'fields' => $highlights,
 				// encode any HTML attributes or entities, ensures valid XML
 				'encoder' => 'html',
@@ -166,16 +186,19 @@
 				// custom highlighting tags
 				'pre_tags' => array('<strong class="highlight">'),
 				'post_tags' => array('</strong>')
-			));
+			);
+			$elasticParams['body']['aggs'] = $aggs;
 			
 			// run both queries!
-			$query_result = $search->search($query);
-			$query_all_result = $search->search($query_all);
+			/*$query_result = $search->search($query);
+			$query_all_result = $search->search($query_all);*/
+
+			$result = ElasticSearch::$client->search($elasticParams);
 			
 			// build root XMK element
 			$xml = new XMLElement($this->dsParamROOTELEMENT, NULL, array(
-				'took' => $query_result->getResponse()->getEngineTime() . 'ms',
-				'max-score' => round($query_result->getMaxScore(), 4)
+				'took' => $result['took'] . 'ms',
+				'max-score' => round($result['hits']['max_score'], 4)
 			));
 			
 			// append keywords to the XML
@@ -186,12 +209,24 @@
 			
 			// build pagination
 			$xml->appendChild(General::buildPaginationElement(
-				$query_result->getTotalHits(),
-				ceil($query_result->getTotalHits() * (1 / $params->{'per-page'})),
+				$result['hits']['total'],
+				ceil($result['hits']['total'] * (1 / $params->{'per-page'})),
 				$params->{'per-page'},
 				$params->{'current-page'}
 			));
 			
+			$xml_aggregations = new XMLElement('aggregations');
+			foreach($result['aggregations'] as $handle => $aggregation) {
+				$xml_aggregation = new XMLElement('aggregation', $section_full_names[$handle], array(
+					'handle' => $handle,
+					'entries' => $aggregation['doc_count'],
+					// mark whether this section was searched within
+					'active' => in_array($handle, $sections) ? 'yes' : 'no',
+				));
+				$xml_aggregations->appendChild($xml_aggregation);
+			}
+			$xml->appendChild($xml_aggregations);
+/*
 			// build facets
 			$xml_facets = new XMLElement('facets');
 			// merge the facets from both queries so they appear as one
@@ -211,7 +246,7 @@
 				}
 				$xml_facets->appendChild($xml_facet);
 			}
-			$xml->appendChild($xml_facets);
+			$xml->appendChild($xml_facets);*/
 			
 			// if each entry is to have its full XML built and appended to the result,
 			// create a new EntryManager for using later on
@@ -222,16 +257,16 @@
 			
 			// append entries
 			$xml_entries = new XMLElement('entries');
-			foreach($query_result->getResults() as $data) {
+			foreach($result['hits']['hits'] as $data) {
 				
 				$entry = new XMLElement('entry', NULL, array(
-					'id' => $data->getId(),
-					'section' => $data->getType(),
-					'score' => is_array($data->getScore()) ? reset($data->getScore()) : round($data->getScore(), 4)
+					'id' => $data['_id'],
+					'section' => $data['_type'],
+					'score' => is_array($data['_score']) ? reset($data['_score']) : round($data['_score'], 4)
 				));
 				
 				// append field highlights
-				foreach($data->getHighlights() as $field => $highlight) {
+				foreach($data['highlight'] as $field => $highlight) {
 					foreach($highlight as $html) {
 						$entry->appendChild(new XMLElement('highlight', $html, array('field' => $field)));
 					}
@@ -253,13 +288,13 @@
 				$xml_entries->appendChild($entry);
 				
 				// put each entry ID into the param pool for chaining
-				$param_pool['ds-elasticsearch'][] = $data->getId();
+				$param_pool['ds-elasticsearch'][] = $data['_id'];
 			}
 			$xml->appendChild($xml_entries);
 			
 			// log query if logging is enabled
 			if ($config->{'log-searches'} === 'yes') {
-				ElasticSearchLogs::save($params->keywords, $params->{'keywords-raw'}, $sections, $params->{'current-page'}, $query_result->getTotalHits());
+				ElasticSearchLogs::save($params->keywords, $params->{'keywords-raw'}, $sections, $params->{'current-page'}, $result['hits']['total']);
 			}
 			
 			return $xml;

@@ -21,7 +21,10 @@
 				switch ($_POST['with-selected']) {
 					case 'rebuild':
 						foreach ($checked as $handle) {
-							ElasticSearch::getIndex()->getType($handle)->delete();
+							try{
+								ElasticSearch::getIndex()->getType($handle)->delete();
+							}
+							catch (Exception $e) {}
 							ElasticSearch::createType($handle);
 							redirect("{$this->uri}/mappings/");
 						}
@@ -84,9 +87,15 @@
 					$col_fields = Widget::TableData(implode(', ', $type->fields));
 					$col_json = Widget::TableData(sprintf('<a href="%s">%s.json</a>', $type->section->get('handle'), $type->section->get('handle')));
 					
+					// var_dump($type->type);die;
+
 					if($type->type) {
-						
-						$count = $type->type->count();
+
+						$count = ElasticSearch::$client->count(array(
+							'index' => ElasticSearch::$index,
+							'type' => $type->type,
+						));
+						$count = $count['count'];
 						
 						$col_count = Widget::TableData(
 							'<span id="reindex-' . $type->section->get('handle') . '">' . 

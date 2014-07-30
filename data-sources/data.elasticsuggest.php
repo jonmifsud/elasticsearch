@@ -45,32 +45,36 @@
 			}
 			
 			ElasticSearch::init();
-			
-			$query_querystring = new Elastica_Query_QueryString();
-			$query_querystring->setDefaultOperator('AND');
-			$query_querystring->setQueryString($params->keywords);
-			
+						
+			$fields = array();
 			if($params->{'language'}) {
-				$fields = array();
 				foreach($params->{'language'} as $language) {
 					$fields[] = '*_' . $language . '.symphony_fulltext';
 				}
-				$query_querystring->setFields($fields);
+				// $query_querystring->setFields($fields);
 			} else {
-				$query_querystring->setFields(array('*.symphony_fulltext'));
+				$fields = array('*.symphony_fulltext');
 			}
 			
-			$query = new Elastica_Query($query_querystring);
+			$elasticParams = array(
+				'index' => ElasticSearch::$index,
+				'size' => $params->{'per-page'},
+				'from' => 0,
+
+				'q' => $params->keywords,
+				"default_operator" => "AND",
+				"fields" => implode(',', $fields),
+			);
+
+			if (!empty($params->{'sort'}))
+				if ($params->{'sort'} == '_score') $elasticParams['sort'] = array($params->{'sort'});
+				else $elasticParams['sort'] = array($params->{'sort'} => $params->{'direction'});
+			
 			// returns loads. let's say we search for "romeo" and there are hundreds of lines that contain
 			// romeo but also the play title "romeo and juliet", the first 10 or 20 results might just be script lines
 			// containing "romeo", so the play title will not be included. so return a big chunk of hits to give a 
 			// better chance of more different terms being in the result. a tradeoff of speed/hackiness over usefulness.
-			$query->setLimit(1000);
-			
-			$search = new Elastica_Search(ElasticSearch::getClient());
-			$search->addIndex(ElasticSearch::getIndex());
-			
-			$filter = new Elastica_Filter_Terms('_type');
+			/*$query->setLimit(1000);*/
 			
 			// build an array of all valid section handles that have mappings
 			$all_mapped_sections = array();
@@ -95,12 +99,13 @@
 					$sections[] = $handle;
 				}
 			}
+
+			$elasticParams['type'] = implode(',', $sections);
 			
 			//$autocomplete_fields = array();
 			$highlights = array();
 			
 			foreach($sections as $section) {
-				$filter->addTerm($section);
 				$mapping = json_decode(ElasticSearch::getTypeByHandle($section)->mapping_json, FALSE);
 				// find fields that have symphony_highlight
 				foreach($mapping->{$section}->properties as $field => $properties) {
@@ -111,10 +116,8 @@
 			}
 			
 			//$autocomplete_fields = array_unique($autocomplete_fields);
-			
-			$query->setFilter($filter);
-			
-			$query->setHighlight(array(
+						
+			$elasticParams['body']['highlight'] = array(
 				'fields' => $highlights,
 				// encode any HTML attributes or entities, ensures valid XML
 				'encoder' => 'html',
@@ -125,18 +128,18 @@
 				// custom highlighting tags
 				'pre_tags' => array('<strong>'),
 				'post_tags' => array('</strong>')
-			));
+			);
 			
 			// run the entry search
-			$entries_result = $search->search($query);
+			$result = ElasticSearch::$client->search($elasticParams);
 			
 			$xml = new XMLElement($this->dsParamROOTELEMENT, NULL, array(
-				'took' => $entries_result->getResponse()->getEngineTime() . 'ms'
+				'took' => $result['took'] . 'ms',
 			));
 			
 			$words = array();
-			foreach($entries_result->getResults() as $data) {
-				foreach($data->getHighlights() as $field => $highlight) {
+			foreach($result['hits']['hits'] as $data) {
+				foreach($data['highlight'] as $field => $highlight) {
 					foreach($highlight as $html) {
 						$words[] = $html;
 					}

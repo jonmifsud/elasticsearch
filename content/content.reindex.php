@@ -26,12 +26,12 @@
 			
 			if($page === 1) {
 				// delete all documents in this index
-				$query = new Elastica_Query(array(
+				/*$query = new Elastica_Query(array(
 					'query' => array(
 						'match_all' => array()
 					)
 				));
-				$type->type->deleteByQuery($query);
+				$type->type->deleteByQuery($query);*/
 			}
 			
 			// get new entries
@@ -57,7 +57,12 @@
 			if($entries['remaining-pages'] == 0) {
 				// wait a few seconds, allow HTTP requests to complete...
 				sleep(5);
-				$entries['total-entries'] = $type->type->count();
+				$count = ElasticSearch::$client->count(array(
+					'index' => ElasticSearch::$index,
+					'type' => $type->type,
+				));
+				$count = $count['count'];
+				$entries['total-entries'] = $count;
 			}
 			
 			header('Content-type: application/json');
