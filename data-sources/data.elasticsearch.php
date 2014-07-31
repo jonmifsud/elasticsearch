@@ -275,7 +275,7 @@
 				// build and append entry data
 				// this was pinched from Symphony's datasource class
 				if($config->{'build-entry-xml'} === 'yes') {
-					$e = reset($em->fetch($data->getId()));
+					$e = reset($em->fetch($data['_id']));
 					$field_data = $e->getData();
 					foreach($field_data as $field_id => $values) {
 						if(!isset($field_pool[$field_id]) || !is_object($field_pool[$field_id])) {

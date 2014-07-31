@@ -21,18 +21,27 @@
 				switch ($_POST['with-selected']) {
 					case 'rebuild':
 						foreach ($checked as $handle) {
-							try{
-								ElasticSearch::getIndex()->getType($handle)->delete();
-							}
-							catch (Exception $e) {}
+							// try{
+								$params = array(
+									"index" => ElasticSearch::$index,
+									"type"  => $handle,
+									"id"    => "_mapping"
+								);
+								ElasticSearch::$client->delete($params);
+							// }
+							// catch (Exception $e) {}
 							ElasticSearch::createType($handle);
 							redirect("{$this->uri}/mappings/");
 						}
 					break;
 					case 'delete':
 						foreach ($checked as $handle) {
-							$type = ElasticSearch::getIndex()->getType($handle);
-							$type->delete();
+							$params = array(
+								"index" => ElasticSearch::$index,
+								"type"  => $handle,
+								"id"    => "_mapping"
+							);
+							ElasticSearch::$client->delete($params);
 						}						
 						redirect("{$this->uri}/mappings/");
 					break;	

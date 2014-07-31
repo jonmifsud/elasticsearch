@@ -1,20 +1,6 @@
 <?php
 
-// function __autoload_elastica ($class) {
-// 	$path = str_replace('\\', '/', $class);
-// 	$load = EXTENSIONS . '/elasticsearch/lib/Elastica/lib/' . $path . '.php';
-// 	if (file_exists($load)) require_once($load);
-// }
-// spl_autoload_register('__autoload_elastica');
-
 require 'vendor/autoload.php';
-
-// function __autoload_elasticsearch ($class) {
-// 	$path = str_replace('\\', '/', $class);
-// 	$load = EXTENSIONS . '/elasticsearch/lib/' . $path . '.php';
-// 	if (file_exists($load)) require_once($load);
-// }
-// spl_autoload_register('__autoload_elasticsearch');
 
 require_once(TOOLKIT . '/class.sectionmanager.php');
 
@@ -162,23 +148,15 @@ Class ElasticSearch {
 		$local_type = self::getTypeByHandle($handle);
 		$mapping = json_decode($local_type->mapping_json, TRUE);
 
-		var_dump($mapping);
-		
-		$type = new Elastica\Type(self::getIndex(), $handle);
+		$mapping[$handle]['_source'] = array('enabled'=>true);  
 
-		echo('<br/><br/>');
-		var_dump($type);
+		$params = array(
+			"index" => self::$index,
+			"type"  => $handle,
+			"body"  => $mapping
+		);
+		self::$client->indices()->putMapping($params);
 		
-		$type_mapping = new Elastica\Type\Mapping($type);
-		foreach($mapping[$handle] as $key => $value) {
-			$type_mapping->setParam($key, $value);
-		}
-
-		echo('<br/><br/>');
-		var_dump($type_mapping);
-		echo('<br/><br/>');
-		
-		var_dump( $type->setMapping($type_mapping) );//die;
 		self::$client->indices()->refresh(array('index'=>self::$index));
 	}
 	

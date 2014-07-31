@@ -25,13 +25,14 @@
 			$type = ElasticSearch::getTypeByHandle($section_handle);
 			
 			if($page === 1) {
-				// delete all documents in this index
-				/*$query = new Elastica_Query(array(
-					'query' => array(
-						'match_all' => array()
-					)
-				));
-				$type->type->deleteByQuery($query);*/
+				// delete all documents in this index/section
+				$params = array(
+					"index" => ElasticSearch::$index,
+					"type"  => $section_handle,
+					// "body"  => array("query" => array('bool' => array("must" => array("match_all" => (object)array()) ) ))
+					"body"  => array("query" => array("match_all" => (object)array()) ) 
+				);
+				ElasticSearch::$client->deleteByQuery($params);
 			}
 			
 			// get new entries
