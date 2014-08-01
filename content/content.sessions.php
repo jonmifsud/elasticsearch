@@ -105,7 +105,8 @@
 			
 			else {
 				
-				$browscap = new Browscap(CACHE);
+				ini_set('memory_limit', '256M');
+				$browscap = new phpbrowscap\Browscap(CACHE);
 				
 				$alt = FALSE;
 				foreach ($rows as $row) {
