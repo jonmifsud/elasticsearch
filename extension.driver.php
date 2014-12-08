@@ -122,7 +122,7 @@
 				))
 			);
 			
-			Administration::instance()->saveConfig();
+			Symphony::Configuration()->write();
 			
 			// create workspace structure
 			$config = (object)Symphony::Configuration()->get('directory');
@@ -146,7 +146,7 @@
 			if($config) {
 				// remove config
 				Symphony::Configuration()->remove('elasticsearch');			
-				Administration::instance()->saveConfig();
+				Symphony::Configuration()->write();
 			}
 			
 			// remove table
