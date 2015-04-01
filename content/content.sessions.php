@@ -111,7 +111,7 @@
 				foreach ($rows as $row) {
 					
 					if(!empty($row['user_agent'])) {
-						$browser = $browscap->getBrowser($row['user_agent']);
+						$browser = @$browscap->getBrowser($row['user_agent']);
 						$browser_string = sprintf('%s %s (%s)', $browser->Browser, $browser->MajorVer, $browser->Platform);
 					} else {
 						$browser_string = '';
