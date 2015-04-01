@@ -89,7 +89,14 @@ Class ElasticSearch {
 		$get_mappings = self::getIndex()->request('_mapping', Elastica_Request::GET, array());
 		$all_mappings = $get_mappings->getData();
 		self::$mappings = reset($all_mappings);
-		
+
+		// In some versions of ES, the mappings is actually nested two deep
+		// with the top level being the index name (catered for above with reset())
+		// and the next level being 'mappings'.
+		if (isset(self::$mappings['mappings'])) {
+			self::$mappings = self::$mappings['mappings'];
+		}
+
 		$types = array();
 		foreach($sm->fetch() as $section) {
 			
