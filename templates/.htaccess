@@ -1,4 +1,4 @@
 <IfModule mod_rewrite.c>
-	RewriteEngine on
-	RewriteRule ^(.*).json$ - [F]
+    RewriteEngine on
+    RewriteRule ^(.*).json$ - [F]
 </IfModule>

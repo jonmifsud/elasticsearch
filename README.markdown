@@ -18,26 +18,26 @@ The ElasticSearch extension integrates Symphony with [ElasticSearch](http://www.
 ## Contents
 
 1. [Install ElasticSearch](#es-install)
-	* [elasticsearch-servicewrapper](#es-elasticsearch-servicewrapper)
-	* [elasticsearch-head](#es-elasticsearch-head)
-	* [elasticsearch-mapper-attachments](#es-elasticsearch-mapper-attachments)
-	* [elasticsearch-http-basic](#es-elasticsearch-http-basic)
+    * [elasticsearch-servicewrapper](#es-elasticsearch-servicewrapper)
+    * [elasticsearch-head](#es-elasticsearch-head)
+    * [elasticsearch-mapper-attachments](#es-elasticsearch-mapper-attachments)
+    * [elasticsearch-http-basic](#es-elasticsearch-http-basic)
 2. [Configure the Symphony extension](#es-configure)
-	* [File structure](#es-file-structure)
-	* [Anatomy of ElasticSearch](#es-anatomy)
-	* [Modifying the custom analysers](#es-analysers)
-		* [symphony_fulltext](#es-symphony_fulltext)
-		* [symphony_autocomplete](#es-symphony_autocomplete)
-	* [Section mappings](#es-section-mappings)
-	* [Mapping Symphony data](#es-mapping-symphony-data)
-	* [Create the index in ElasticSearch](#es-create-index)
-	* [Submitting the mapping to ElasticSearch](#es-submit-mapping)
-	* [Batch indexing entries](#es-batch-indexing)
-	* [Additional configuration](#es-additional-configuration)
-	* [Congratulations](#es-congratulations)
+    * [File structure](#es-file-structure)
+    * [Anatomy of ElasticSearch](#es-anatomy)
+    * [Modifying the custom analysers](#es-analysers)
+        * [symphony_fulltext](#es-symphony_fulltext)
+        * [symphony_autocomplete](#es-symphony_autocomplete)
+    * [Section mappings](#es-section-mappings)
+    * [Mapping Symphony data](#es-mapping-symphony-data)
+    * [Create the index in ElasticSearch](#es-create-index)
+    * [Submitting the mapping to ElasticSearch](#es-submit-mapping)
+    * [Batch indexing entries](#es-batch-indexing)
+    * [Additional configuration](#es-additional-configuration)
+    * [Congratulations](#es-congratulations)
 3. [Fulltext search data source](#es-search-datasource)
-	* [Example search form](#es-example-search-form)
-	* [Example XML response](#es-example-search-response)
+    * [Example search form](#es-example-search-form)
+    * [Example XML response](#es-example-search-response)
 4. [Autocomplete](#es-autocomplete)
 5. [Multilingual Search](#es-multilingual-search)
 6. [Logging and analysis](#es-logging)
@@ -47,69 +47,69 @@ You will need to install ElasticSearch (ES) on your server:
 
 Linux:
 
-	# replace 0.18.7 with latest stable tag
-	cd ~
-	wget https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.18.7.tar.gz -O elasticsearch.tar.gz
-	tar -xf elasticsearch.tar.gz
-	rm elasticsearch.tar.gz
-	sudo mv elasticsearch-* elasticsearch
-	sudo mv elasticsearch /usr/local/share
+    # replace 0.18.7 with latest stable tag
+    cd ~
+    wget https://github.com/downloads/elasticsearch/elasticsearch/elasticsearch-0.18.7.tar.gz -O elasticsearch.tar.gz
+    tar -xf elasticsearch.tar.gz
+    rm elasticsearch.tar.gz
+    sudo mv elasticsearch-* elasticsearch
+    sudo mv elasticsearch /usr/local/share
 
 Mac OSX:
 
-	brew install elasticsearch
+    brew install elasticsearch
 
 There are several ES plugins you will find useful. They are all easy to install and use.
 
 ### <a name="es-elasticsearch-servicewrapper"/> elasticsearch-servicewrapper
 This plugin installs a `service` shortcut to start/stop the ES service on your server. Install the plugin (assumes paths above, will be different for an OSX Homebrew install):
 
-	curl -L http://github.com/elasticsearch/elasticsearch-servicewrapper/tarball/master | tar -xz
-	mv *servicewrapper*/service /usr/local/share/elasticsearch/bin/
-	rm -Rf *servicewrapper*
-	sudo /usr/local/share/elasticsearch/bin/service/elasticsearch install
-	sudo ln -s `readlink -f /usr/local/share/elasticsearch/bin/service/elasticsearch` /usr/local/bin/rcelasticsearch
+    curl -L http://github.com/elasticsearch/elasticsearch-servicewrapper/tarball/master | tar -xz
+    mv *servicewrapper*/service /usr/local/share/elasticsearch/bin/
+    rm -Rf *servicewrapper*
+    sudo /usr/local/share/elasticsearch/bin/service/elasticsearch install
+    sudo ln -s `readlink -f /usr/local/share/elasticsearch/bin/service/elasticsearch` /usr/local/bin/rcelasticsearch
 
 You can now `start`, `stop` or `restart` ElasticSearch using the following command from anywhere:
 
-	service elasticsearch start
+    service elasticsearch start
 
 ElasticSearch runs on port 9200 by default, therefore a successful installation should yield some Douglas Adams gold at:
 
-	http://localhost:9200/
+    http://localhost:9200/
 
 ### <a name="es-elasticsearch-head"/> elasticsearch-head
 This provides a UI for browsing your ES cluster, its indexes and content. Use it to test queries and explore new things.
 
-	# installs from https://github.com/Aconex/elasticsearch-head
-	sudo /usr/local/share/elasticsearch/bin/plugin -install Aconex/elasticsearch-head
+    # installs from https://github.com/Aconex/elasticsearch-head
+    sudo /usr/local/share/elasticsearch/bin/plugin -install Aconex/elasticsearch-head
 
 Once installed you can view the plugin at:
 
-	http://localhost:9200/_plugin/head/
+    http://localhost:9200/_plugin/head/
 
 ### <a name="es-elasticsearch-mapper-attachments"/> elasticsearch-mapper-attachments
 This allows you to index the contents of binary files such as Word, PDF and [others](http://tika.apache.org/0.9/formats.html). Once installed you can use a field type of `attachment` when configuring section mappings (more on this later).
 
-	# replace 1.2.0 with latest stable tag https://github.com/elasticsearch/elasticsearch-mapper-attachments
-	sudo /usr/local/share/elasticsearch/bin/plugin -install elasticsearch/elasticsearch-mapper-attachments/1.2.0
+    # replace 1.2.0 with latest stable tag https://github.com/elasticsearch/elasticsearch-mapper-attachments
+    sudo /usr/local/share/elasticsearch/bin/plugin -install elasticsearch/elasticsearch-mapper-attachments/1.2.0
 
 ### <a name="es-elasticsearch-http-basic"/> elasticsearch-http-basic
 By default ElasticSearch runs on port 9200 and is open and public. If running ElasticSearch on a public webserver, you can lock down access using Basic HTTP authentication. This is provided by the `elasticsearch-http-basic` plugin. Install by downloading the .jar file to your ES plugins directory
 
-	mkdir /usr/local/share/elasticsearch/plugins/http-basic
-	cd /usr/local/share/elasticsearch/plugins/http-basic
-	wget https://github.com/downloads/Asquera/elasticsearch-http-basic/elasticsearch-http-basic-1.0.3.jar /usr/local/share/elasticsearch/plugins/http-basic
+    mkdir /usr/local/share/elasticsearch/plugins/http-basic
+    cd /usr/local/share/elasticsearch/plugins/http-basic
+    wget https://github.com/downloads/Asquera/elasticsearch-http-basic/elasticsearch-http-basic-1.0.3.jar /usr/local/share/elasticsearch/plugins/http-basic
 
 Then add the plugin configuration to your `elasticsearch.yaml` file:
-	
-	http.basic.enabled: true
-	http.basic.user: "my_username"
-	http.basic.password: "my_password"
+
+    http.basic.enabled: true
+    http.basic.user: "my_username"
+    http.basic.password: "my_password"
 
 Restart ElasticSearch:
-	
-	service elasticsearch start
+
+    service elasticsearch start
 
 The root of your ElasticSearch server (e.g. http://localhost:9200/) will still return JSON, so you can easily check server status. But other requests will be blocked. Add your username and password to the System > Preferences page in Symphony.
 
@@ -121,11 +121,11 @@ Before we go any further, you should know that ElasticSearch is powerful. It use
 ### <a name="es-file-structure"/> File structure
 On installation the extension will have created a directory in your workspace folder named `elasticsearch` containing the following:
 
-	/workspace
-		/elasticsearch
-			.htaccess
-			index.json
-			/mappings
+    /workspace
+        /elasticsearch
+            .htaccess
+            index.json
+            /mappings
 
 The `.htaccess` file keeps your files private. `index.json` is a JSON document which contains the configuration passed when an ElasticSearch **index** is created. Specifically, this config file specifies two custom **analysers** (`symphony_fulltext` and `symphony_autocomplete`) and two custom filter (`custom_synonyms` and `custom_stop`). More on these later.
 
@@ -175,40 +175,40 @@ This is where the you put your new knowledge to the test, and you map your Symph
 
 Begin by creating a file named `articles.json` in the mappings directory. This file will define the fields that the ElasticSearch document will contain when it indexes an article. You decide that you only want the Title, Content and Document fields indexed for search:
 
-	{
-		"articles": {
-			"properties": {
-				"title": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"title": {"type" : "string"},
-						"symphony_fulltext" : {"type" : "string", "analyzer": "symphony_fulltext"},
-						"symphony_autocomplete" : {"type" : "string", "analyzer": "symphony_autocomplete"}
-					},
-					"boost": 3.0
-				},
-				"content": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"content": {"type" : "string"},
-						"symphony_fulltext" : {"type" : "string", "analyzer": "symphony_fulltext"}
-					},
-					"symphony_highlight": "yes"
-				},
-				"document": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"document": {"type" : "attachment"},
-						"symphony_fulltext" : {"type" : "attachment", "analyzer": "symphony_fulltext"}
-					},
-					"symphony_highlight": "yes"
-				}
-			}
-		}
-	}
+    {
+        "articles": {
+            "properties": {
+                "title": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "title": {"type" : "string"},
+                        "symphony_fulltext" : {"type" : "string", "analyzer": "symphony_fulltext"},
+                        "symphony_autocomplete" : {"type" : "string", "analyzer": "symphony_autocomplete"}
+                    },
+                    "boost": 3.0
+                },
+                "content": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "content": {"type" : "string"},
+                        "symphony_fulltext" : {"type" : "string", "analyzer": "symphony_fulltext"}
+                    },
+                    "symphony_highlight": "yes"
+                },
+                "document": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "document": {"type" : "attachment"},
+                        "symphony_fulltext" : {"type" : "attachment", "analyzer": "symphony_fulltext"}
+                    },
+                    "symphony_highlight": "yes"
+                }
+            }
+        }
+    }
 
 Wow, what is all this about? It's easy. It's an object that matches the handle of your section. Each field that you want indexed is in there. Each field _could_ be defined as a core type such as string, number or date, but we're doing something clever and defining them as a "multi_field" type. This means that for each field we can index them in several (three) different ways:
 
@@ -223,25 +223,25 @@ Adding a `boost` property for `title` ranks this field three times more importan
 ### <a name="es-mapping-symphony-data"/> Mapping Symphony data
 Creating the JSON mapping is the first of two steps. The second involves converting Symphony entry data from an array into the JSON that ElasticSearch expects. Again, it's easy. For your Articles section, create a file also in `workspace/elasticsearch/mappings` named `articles.php`.
 
-	<?php
-	class elasticsearch_articles {
+    <?php
+    class elasticsearch_articles {
 
-		public function mapData(Array $data, Entry $entry) {
-			$json = array();
-			// var_dump($data);
+        public function mapData(Array $data, Entry $entry) {
+            $json = array();
+            // var_dump($data);
 
-			$json['_boost'] = 1;
+            $json['_boost'] = 1;
 
-			if($data['is-published']['value'] !== 'yes') return;
+            if($data['is-published']['value'] !== 'yes') return;
 
-			$json['title'] = $data['title']['value'];
-			$json['content'] = $data['content']['value'];
-			$json['document'] = base64_encode(file_get_contents($data['document']['file']));
+            $json['title'] = $data['title']['value'];
+            $json['content'] = $data['content']['value'];
+            $json['document'] = base64_encode(file_get_contents($data['document']['file']));
 
-			return $json;
-		}
+            return $json;
+        }
 
-	}
+    }
 
 First of all the class name should match the section handle. Hyphens become underscores. The `mapData` method is provided with the entry's data as an array, and the raw `Entry` object if you need it (you usually won't). This method should return a JSON object containing the data for all fields you specified in the mapping JSON file above.
 
@@ -305,11 +305,11 @@ The datasource executes a [query_string query](#) against any multi_type field w
 
 Your search form might look like this:
 
-	<form action="/search/" method="get">
-		<label>Search <input type="text" name="keywords" /></label>
-		<input type="hidden" name="per-page" value="10" />
-		<input type="hidden" name="sections" value="articles,comments,categories" />
-	</form>
+    <form action="/search/" method="get">
+        <label>Search <input type="text" name="keywords" /></label>
+        <input type="hidden" name="per-page" value="10" />
+        <input type="hidden" name="sections" value="articles,comments,categories" />
+    </form>
 
 Note that all of these variables (except for `keywords`) have defaults in `config.php`. Change them in your config file and omit them from the URL.
 
@@ -317,29 +317,29 @@ Note that all of these variables (except for `keywords`) have defaults in `confi
 
 The XML returned from this data source looks like this:
 
-	<elasticsearch took="54ms" max-score="0.7293">
-		<keywords>foo bar</keywords>
-		<pagination total-entries="5" total-pages="1" entries-per-page="20" current-page="1" />
-		<facets>
-			<facet handle="filtered-sections">
-				<term handle="articles" entries="3" active="yes">Articles</term>
-				<term handle="comments" entries="2" active="yes">Comments</term>
-			</facet>
-			<facet handle="all-sections">
-				<term handle="articles" entries="100" active="yes">Articles</term>
-				<term handle="comments" entries="391" active="yes">Comments</term>
-			</facet>
-		</facets>
-		<entries>
-			<entry id="2" section="articles" score="0.7293">
-				<highlight field="title">My favourite words are <strong class="highlight">foo</strong> and <strong class="highlight">bar</strong>, but don't tell fred!</highlight>
-			</entry>
-			<entry id="4" section="comments" score="0.6213">...</entry>
-			<entry id="3" section="articles" score="0.5004">...</entry>
-			<entry id="1" section="articles" score="0.4277">...</entry>
-			<entry id="5" section="comments" score="0.2651">...</entry>
-		</entries>
-	</elasticsearch>
+    <elasticsearch took="54ms" max-score="0.7293">
+        <keywords>foo bar</keywords>
+        <pagination total-entries="5" total-pages="1" entries-per-page="20" current-page="1" />
+        <facets>
+            <facet handle="filtered-sections">
+                <term handle="articles" entries="3" active="yes">Articles</term>
+                <term handle="comments" entries="2" active="yes">Comments</term>
+            </facet>
+            <facet handle="all-sections">
+                <term handle="articles" entries="100" active="yes">Articles</term>
+                <term handle="comments" entries="391" active="yes">Comments</term>
+            </facet>
+        </facets>
+        <entries>
+            <entry id="2" section="articles" score="0.7293">
+                <highlight field="title">My favourite words are <strong class="highlight">foo</strong> and <strong class="highlight">bar</strong>, but don't tell fred!</highlight>
+            </entry>
+            <entry id="4" section="comments" score="0.6213">...</entry>
+            <entry id="3" section="articles" score="0.5004">...</entry>
+            <entry id="1" section="articles" score="0.4277">...</entry>
+            <entry id="5" section="comments" score="0.2651">...</entry>
+        </entries>
+    </elasticsearch>
 
 The query returns two [facets](http://www.elasticsearch.org/guide/reference/api/search/facets/) which are used as a breakdown of entries across sections. `filtered-sections` lists the sections for which entries were found, and how many. `all-sections` lists all sections and how many entries, regardless of the search query. The `@active` attribute is `yes` if the search is running on that section:
 
@@ -358,16 +358,16 @@ There is a second `ElasticSearch: Suggest` data source provided by this extensio
 
 Create a new page, give it a page type of `XML`, attach the suggest data source, and this XSLT:
 
-	<?xml version="1.0" encoding="UTF-8"?>
-	<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+    <?xml version="1.0" encoding="UTF-8"?>
+    <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
-		<xsl:output method="xml" omit-xml-declaration="yes" encoding="UTF-8" indent="yes" />
+        <xsl:output method="xml" omit-xml-declaration="yes" encoding="UTF-8" indent="yes" />
 
-		<xsl:template match="/">
-			<xsl:copy-of select="data/elasticsearch-suggest/words" />
-		</xsl:template>
+        <xsl:template match="/">
+            <xsl:copy-of select="data/elasticsearch-suggest/words" />
+        </xsl:template>
 
-	</xsl:stylesheet>
+    </xsl:stylesheet>
 
 This query will be run against any multi_type field with a name of `symphony_autocomplete`, so only specify this name for fields that make sense for autocomplete. Choose fields like post titles, product SKUs and people's names.
 
@@ -379,13 +379,13 @@ Pass the following querystring parameters:
 
 The XML result looks like:
 
-	<words>
-		<word>
-			<raw>The Story of Foo and his Bar!</raw>
-			<highlighted>The Story Of &lt;strong&gt;Foo&lt;/strong&gt; and his &lt;strong&gt;Bar&lt;/strong&gt;!</highlighted>
-		</word>
-		...
-	</words>
+    <words>
+        <word>
+            <raw>The Story of Foo and his Bar!</raw>
+            <highlighted>The Story Of &lt;strong&gt;Foo&lt;/strong&gt; and his &lt;strong&gt;Bar&lt;/strong&gt;!</highlighted>
+        </word>
+        ...
+    </words>
 
 The `raw` element contains plain text while `highlighted` contains the string with matching full words highlighed. The result is entity-encoded to make JavaScript processing easier (treat it as plain text).
 
@@ -394,70 +394,70 @@ While ElasticSearch does not support multilingual content out of the box, it is 
 
 Let's say you have an Articles section with two multilingual fields: Title and Content. When you create the section mapping, you can map each of these fields for each language. For example mapping the two fields for English and German:
 
-	{
-		"articles": {
-			"properties": {
-				"title_en": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"title_en": {"type" : "string"},
-						...
-					}
-				},
-				"title_de": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"title_de": {"type" : "string"},
-						...
-					}
-				},
-				"content_en": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"title_en": {"type" : "string"},
-						...
-					}
-				},
-				"content_de": {
-					"type" : "multi_field",
-					"store": "yes",
-					"fields": {
-						"title_de": {"type" : "string"},
-						...
-					}
-				}
-			}
-		}
-	}
+    {
+        "articles": {
+            "properties": {
+                "title_en": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "title_en": {"type" : "string"},
+                        ...
+                    }
+                },
+                "title_de": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "title_de": {"type" : "string"},
+                        ...
+                    }
+                },
+                "content_en": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "title_en": {"type" : "string"},
+                        ...
+                    }
+                },
+                "content_de": {
+                    "type" : "multi_field",
+                    "store": "yes",
+                    "fields": {
+                        "title_de": {"type" : "string"},
+                        ...
+                    }
+                }
+            }
+        }
+    }
 
 And the PHP mapper (note the structure for getting the per-language data might vary depending on which multilingual extension you are using in Symphony):
 
-	<?php
-	class elasticsearch_articles {
-		public function mapData(Array $data, Entry $entry) {
-			$json = array();
-			// title
-			$json['title_en'] = $data['title']['value']['en'];
-			$json['title_de'] = $data['title']['value']['de'];
-			// content
-			$json['content_en'] = $data['content']['value']['en'];
-			$json['content_de'] = $data['content']['value']['de'];
-			return $json;
-		}
-	}
+    <?php
+    class elasticsearch_articles {
+        public function mapData(Array $data, Entry $entry) {
+            $json = array();
+            // title
+            $json['title_en'] = $data['title']['value']['en'];
+            $json['title_de'] = $data['title']['value']['de'];
+            // content
+            $json['content_en'] = $data['content']['value']['en'];
+            $json['content_de'] = $data['content']['value']['de'];
+            return $json;
+        }
+    }
 
 Two Symphony fields, mapped to four ElasticSearch fields.
 
 To search a specific language only, you can pass `language` URL parameter to your search page. For example:
 
-	http://localhost/search/?sections=articles&keywords=foo+bar&language=en
+    http://localhost/search/?sections=articles&keywords=foo+bar&language=en
 
 Multiple languages can be searched at once:
 
-	http://localhost/search/?sections=articles&keywords=foo+bar&language=en,de
+    http://localhost/search/?sections=articles&keywords=foo+bar&language=en,de
 
 Omit the `language` parameter to search all fields. If `language` is omitted you can specify a default for the `default-language` property the Symphony config file. The same convention also applies to the autocomplete data source.
 
@@ -465,7 +465,7 @@ Omit the `language` parameter to search all fields. If `language` is omitted you
 
 If you have never looked over a search log, then shame on you. Do yourself a favour and read Lou Rosenfold's [Search Analytics For Your Site](http://rosenfeldmedia.com/books/searchanalytics/) to be instantly convinced that optimising search will benefit you and your users.
 
-You can [configure Google Analytics to track searches on your site](http://support.google.com/analytics/bin/answer.py?hl=en&answer=1012264). It will show you which terms were searched for, and which pages people started searching from (which usually means that page should contain information regarding their search term!). However Google Analytics isn't a dedicate search term analytics tool and doesn't give you the granular breakdown that analytics nerds so desperately desire. 
+You can [configure Google Analytics to track searches on your site](http://support.google.com/analytics/bin/answer.py?hl=en&answer=1012264). It will show you which terms were searched for, and which pages people started searching from (which usually means that page should contain information regarding their search term!). However Google Analytics isn't a dedicate search term analytics tool and doesn't give you the granular breakdown that analytics nerds so desperately desire.
 
 To this end, this extension logs every search query it makes (disable logging in the config) for you to pore over in your spare time. Logs are broken down by:
 
