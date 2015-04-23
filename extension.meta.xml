@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<extension id="elasticsearch" status="released" xmlns="http://symphony-cms.com/schemas/extension/1.0">
+<extension id="elasticsearch" status="released" xmlns="http://getsymphony.com/schemas/extension/1.0">
 	<name>ElasticSearch</name>
 	<description>Integrates the powerful Lucene-based search engine, ElasticSearch, with Symphony.</description>
 	<repo type="github">https://github.com/symphonists/elasticsearch</repo>
@@ -16,6 +16,12 @@
 		</author>
 	</authors>
 	<releases>
+		<release version="0.4.1" date="2015-04-23" min="2.3.x">
+			- Better handling for sections with whitespace
+			- Better handling for non existant indexes
+			- Update Elastica library to `v0.19.8.0`
+			- Ensure compatibility with Symphony 2.5+
+		</release>
 		<release version="0.4.0" date="2012-03-28" min="2.3.x" />
 		<release version="0.3.1" date="2012-03-05" min="2.2.5" max="2.2.5" />
 	</releases>
