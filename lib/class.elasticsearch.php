@@ -1,23 +1,40 @@
 <?php
 
-function __autoload_elastica ($class) {
-    $path = str_replace('_', '/', $class);
-    $load = EXTENSIONS . '/elasticsearch/lib/Elastica/lib/' . $path . '.php';
-    if (file_exists($load)) require_once($load);
-}
-spl_autoload_register('__autoload_elastica');
+require_once EXTENSIONS . '/elasticsearch/vendor/autoload.php';
 
-require_once(TOOLKIT . '/class.sectionmanager.php');
+Class ElasticSearch
+{
 
-Class ElasticSearch {
-
+    /**
+     * @var Elastica\Client
+     */
     public static $client = null;
+
+    /**
+     * @var Elastica\Index
+     */
     public static $index = null;
+
+    /**
+     * @var array
+     */
     public static $types = array();
+
+    /**
+     * @var array
+     */
     public static $mappings = array();
 
-    public static function init($host='', $index_name='', $username='', $password='') {
-
+    /**
+     * Creates the Elastica\Client instance using the passed credentials.
+     *
+     * @param string $host
+     * @param string $index_name
+     * @param string $username
+     * @param string $password
+     */
+    public static function init($host='', $index_name='', $username='', $password='')
+    {
         if(self::$client !== NULL && self::$index !== NULL) return;
 
         $config = Symphony::Engine()->Configuration()->get('elasticsearch');
@@ -36,7 +53,7 @@ Class ElasticSearch {
         }
 
         try {
-            $client = new Elastica_Client(array('url' => $host));
+            $client = new Elastica\Client(array('url' => $host));
             if(!empty($username) && !empty($password)) {
                 $client->addHeader('Authorization', 'Basic ' . base64_encode($username . ':' . $password));
             }
@@ -47,30 +64,51 @@ Class ElasticSearch {
 
         $index = $client->getIndex($index_name);
 
-        if($auto_create_index) {
-            //if(!$index->exists()) $index->create(array(), TRUE);
-        }
-
         self::$client = $client;
         self::$index = $index;
     }
 
-    public static function flush() {
+    /**
+     * Returns the current Elastica Client
+     *
+     * @return Elastica\Client
+     */
+    public static function getClient()
+    {
+        return self::$client;
+    }
+
+    /**
+     * Returns the current Elastica Index class
+     *
+     * @return Elastica\Index
+     */
+    public static function getIndex()
+    {
+        return self::$index;
+    }
+
+    /**
+     * Resets this class instance by removing the Elastica\Client and emptying the class properties `$index`,
+     * `$mappings` and `$types`
+     */
+    public static function flush()
+    {
         self::$client = NULL;
         self::$index = NULL;
         self::$types = array();
         self::$mappings = array();
     }
 
-    public static function getIndex() {
-        return self::$index;
-    }
-
-    public static function getClient() {
-        return self::$client;
-    }
-
-    public static function getTypeByHandle($handle) {
+    /**
+     * Given the type handle (usually the section handle), this will return
+     * the mapping meta data about this section in an associative array.
+     *
+     * @param string $handle
+     * @return array
+     */
+    public static function getTypeByHandle($handle)
+    {
         if(in_array($handle, self::$types)) {
             return self::$types[$handle];
         }
@@ -79,14 +117,23 @@ Class ElasticSearch {
         return self::$types[$handle];
     }
 
-    public static function getAllTypes() {
+    /**
+     * This function determines which Sections in Symphony have a corresponding mapping in the
+     * the ElasticSearch index. Sections must have a valid type defined in the
+     * `WORKSPACE . /elasticsearch/` or it will be discarded. If a type is valid, but it's not
+     * yet in ElasticSearch, it will also be omitted from the return.
+     *
+     * @return array
+     *  An array of all indexes in ElasticSearch that correspond with Symphony section mappings
+     */
+    public static function getAllTypes()
+    {
         self::init();
 
         if(count(self::$types) > 0) return self::$types;
 
-        $sm = new SectionManager(Symphony::Engine());
-
-        $get_mappings = self::getIndex()->request('_mapping', Elastica_Request::GET, array());
+        // Find all existing mappings in Elasticsearch
+        $get_mappings = self::getIndex()->request('_mapping', Elastica\Request::GET, array());
         $all_mappings = $get_mappings->getData();
         self::$mappings = reset($all_mappings);
 
@@ -97,8 +144,9 @@ Class ElasticSearch {
             self::$mappings = self::$mappings['mappings'];
         }
 
+        // Now find all possible mappings from the filesystem.
         $types = array();
-        foreach($sm->fetch() as $section) {
+        foreach(SectionManager::fetch() as $section) {
 
             $elasticsearch_mapping_file = sprintf('%s/elasticsearch/mappings/%s.json', WORKSPACE, Extension_Elasticsearch::createHandle($section->get('handle')));
             $symphony_mapping_file = sprintf('%s/elasticsearch/mappings/%s.php', WORKSPACE, Extension_Elasticsearch::createHandle($section->get('handle')));
@@ -136,36 +184,60 @@ Class ElasticSearch {
         return $types;
     }
 
-    public static function createType($handle) {
+    /**
+     * Given a the section handle, this function will attempt to
+     * create a corresponding mapping and type in the ElasticSearch index.
+     *
+     * @param string $section_handle
+     * @return boolean
+     */
+    public static function createType($section_handle)
+    {
         self::init();
 
-        $local_type = self::getTypeByHandle($handle);
+        // Fetch the local mapping of this handle
+        $local_type = self::getTypeByHandle($section_handle);
         $mapping = json_decode($local_type->mapping_json, TRUE);
 
-        $type = new Elastica_Type(self::getIndex(), $handle);
-
-        $type_mapping = new Elastica_Type_Mapping($type);
-        foreach($mapping[$handle] as $key => $value) {
+        // Create a new Type and Type Mapping
+        $type = new Elastica\Type(self::getIndex(), $section_handle);
+        $type_mapping = new Elastica\Type\Mapping($type);
+        foreach($mapping[$section_handle] as $key => $value) {
             $type_mapping->setParam($key, $value);
         }
 
-        $type->setMapping($type_mapping);
-        self::getIndex()->refresh();
+        // Attempt to actually persist the mapping to ElasticSearch
+        $response = $type->setMapping($type_mapping);
+        if ($response->isOk()) {
+            return self::getIndex()->refresh()->isOk();
+
+        } else {
+            throw new Exception(sprintf('Failure setting mapping for type %s. ElasticSearch error: %s',
+                $section_handle,
+                $response->getError()
+            ));
+        }
     }
 
-    public static function indexEntry($entry, $section=NULL) {
+    /**
+     * Given an `$entry`, and optionally a `$section`, index this entry
+     * in the appropriate index.
+     *
+     * @param Entry|integer $entry
+     *  The entry object or the Entry ID
+     * @param Section $entry
+     * @return boolean
+     */
+    public static function indexEntry($entry, Section $section = null)
+    {
         self::init();
 
         if(!$entry instanceOf Entry) {
-            // build the entry
-            $em = new EntryManager(Symphony::Engine());
-            $entry = reset($em->fetch($entry));
+            $entry = reset(EntryManager::fetch($entry));
         }
 
         if(!$section instanceOf Section) {
-            // build section
-            $sm = new SectionManager(Symphony::Engine());
-            $section = $sm->fetch($entry->get('section_id'));
+            $section = SectionManager::fetch($entry->get('section_id'));
         }
 
         $type = self::getTypeByHandle($section->get('handle'));
@@ -180,34 +252,37 @@ Class ElasticSearch {
         }
 
         $data = $type->mapping_class->mapData($data, $entry);
-
         if($data) {
-            $document = new Elastica_Document($entry->get('id'), $data);
+            $document = new Elastica\Document($entry->get('id'), $data);
             try {
                 $doc = $type->type->addDocument($document);
             } catch(Exception $ex) {
-
+                throw $ex;
             }
         } else {
-            self::deleteEntry($entry, $section);
+            return self::deleteEntry($entry, $section);
         }
 
-        self::getIndex()->refresh();
-
+        return self::getIndex()->refresh()->isOk();
     }
 
-    public static function deleteEntry($entry, $section=NULL) {
+    /**
+     * Given the `$entry`, delete it from the index
+     *
+     * @param Entry|integer $entry
+     * @param Section $section
+     * @return boolean
+     */
+    public static function deleteEntry($entry, Section $section = null)
+    {
+        self::init();
 
         if(!$entry instanceOf Entry) {
-            // build the entry
-            $em = new EntryManager(Symphony::Engine());
-            $entry = reset($em->fetch($entry));
+            $entry = reset(EntryManager::fetch($entry));
         }
 
         if(!$section instanceOf Section) {
-            // build section
-            $sm = new SectionManager(Symphony::Engine());
-            $section = $sm->fetch($entry->get('section_id'));
+            $section = SectionManager::fetch($entry->get('section_id'));
         }
 
         $type = self::getTypeByHandle($section->get('handle'));
@@ -217,42 +292,32 @@ Class ElasticSearch {
             $type->type->deleteById($entry->get('id'));
         } catch(Exception $ex) { }
 
-        self::getIndex()->refresh();
+        return self::getIndex()->refresh()->isOk();
     }
 
-    /*
-    Inspired by Clinton Gormley's perl client
-        https://github.com/clintongormley/ElasticSearch.pm/blob/master/lib/ElasticSearch/Util.pm
-    Full list of query syntax
-        http://lucene.apache.org/core/old_versioned_docs/versions/3_0_0/queryparsersyntax.html
-    */
-    public static function filterKeywords($keywords) {
+    /**
+     * Given a keyword, filter it for nasties and other bits and pieces.
+     * Inspired by Clinton Gormley's perl client
+     *
+     * @see https://github.com/clintongormley/ElasticSearch.pm/blob/master/lib/ElasticSearch/Util.pm
+     * @link http://lucene.apache.org/core/old_versioned_docs/versions/3_0_0/queryparsersyntax.html
+     * @param string $keywords
+     * @return string
+     */
+    public static function filterKeywords($keywords)
+    {
         // strip tags, should aid against XSS
         $keywords = strip_tags($keywords);
         // remove characters from start/end
         $keywords = trim($keywords, '-+ ');
         // append leading space for future matching
         $keywords = ' ' . $keywords;
-        // remove wilcard `*` and `?` and fuzzy `~`
-        $keywords = preg_replace("/\*|\?|\~/", "", $keywords);
-        // remove range syntax `{}`
-        $keywords = preg_replace("/\{|\}/", "", $keywords);
-        // remove group `()` and`[]` chars
-        $keywords = preg_replace("/\(|\)|\[|\]/", "", $keywords);
-        // remove boost `^`
-        $keywords = preg_replace("/\^/", "", $keywords);
-        // remove not `!`
-        $keywords = preg_replace("/\!/", "", $keywords);
-        // remove and `&&`
-        $keywords = preg_replace("/\&\&/", "", $keywords);
-        // remove or `||`
-        $keywords = preg_replace("/\|\|/", "", $keywords);
+
+        $keywords = \Elastica\Util::replaceBooleanWordsAndEscapeTerm($keywords);
+
         // remove fields such as `title:`
         $keywords = preg_replace("/([a-zA-Z0-9_-]+\:)/", "", $keywords);
-        // remove `-` that don't have spaces before them
-        $keywords = preg_replace("/(?<! )-/", "", $keywords);
-        // remove the spaces after a + or -
-        $keywords = preg_replace("/([+-])\s+/", "", $keywords);
+
         // remove multiple spaces
         $keywords = preg_replace("/\s{1,}/", " ", $keywords);
         // remove characters from start/end (again)
@@ -263,5 +328,4 @@ Class ElasticSearch {
 
         return trim($keywords);
     }
-
 }

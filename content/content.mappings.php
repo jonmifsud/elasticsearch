@@ -25,7 +25,7 @@
                             try {
                                 ElasticSearch::getIndex()->getType($handle)->delete();
                             }
-                            catch (Elastica_Exception_Response $ex) {}
+                            catch (Elastica\Exception\ResponseException $ex) {}
                             ElasticSearch::createType($handle);
                             redirect("{$this->uri}/mappings/");
                         }
@@ -80,11 +80,9 @@
                     Widget::TableRow(array(Widget::TableData(__('None Found.'), 'inactive', null, count($tableHead))))
                 );
             }
-
             else {
 
                 foreach ($types as $type) {
-
                     $col_name = Widget::TableData($type->section->get('name'));
                     $col_name->appendChild(Widget::Input('items['.$type->section->get('handle').']', NULL, 'checkbox'));
 
@@ -117,7 +115,6 @@
                         NULL, NULL, NULL,
                         $attributes
                     );
-
                 }
             }
 
@@ -145,7 +142,6 @@
             $actions->appendChild(Widget::Apply($options));
 
             $this->Form->appendChild($actions);
-
         }
 
     }

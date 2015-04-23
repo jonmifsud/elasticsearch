@@ -1,7 +1,6 @@
 <?php
 
-    require_once(TOOLKIT . '/class.administrationpage.php');
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php');
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php';
 
     class ElasticSearch_AdministrationPage extends AdministrationPage {
 

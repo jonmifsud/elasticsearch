@@ -1,19 +1,34 @@
 # ElasticSearch
 
-* Version: 0.4.1
+* Version: 0.5.0
 * Author: [Nick Dunn](http://nick-dunn.co.uk), [Symphony Community](https://github.com/symphonists)
 * Build Date: 2015-04-23
-* Requirements: Symphony 2.3.x
+* Requirements: Symphony 2.6+
 
 ## Description
 The ElasticSearch extension integrates Symphony with [ElasticSearch](http://www.elasticsearch.org/) to provide powerful indexing and search for your site.
 
 ## Usage
-1. Add the `elasticsearch` folder to your Extensions directory
+1. Add the `/elasticsearch` folder to your Extensions directory
 2. Enable the extension from the Extensions page
 3. Check that a directory was created at `/workspace/elasticsearch`
 4. Create mapping files in `/workspace/elasticsearch/mappings`
 5. Send your mappings to ElasticSearch (using the ElasticSearch > Mappings page)
+
+### Installing PHP Browscap
+
+This extension makes use of the [PHP Browscap](https://github.com/GaretJax/phpbrowscap) component to help provide information about your users searching habits. To finialise the installation, you'll need to pull in the latest
+browscap file. Unfortunately this a memory intensive process so it's best left to the developer to get this file. This
+psuedo code below will 
+
+```php
+    require_once 'your-symphony-path/extensions/elasticsearch/vendor/autoload.php';
+
+    // Where {CACHE} is your Symphony cache folder (usually your-symphony-path/manifest/cache/)
+    $browscap = new phpbrowscap\Browscap({CACHE});
+    // Will load the files and save them to the CACHE directory
+    $browscap->updateCache();
+```
 
 ## Contents
 

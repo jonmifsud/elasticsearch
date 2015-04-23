@@ -1,7 +1,8 @@
 <?php
 
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php');
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch_logs.php');
+    require_once EXTENSIONS . '/elasticsearch/vendor/autoload.php';
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php';
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch_logs.php';
 
     class Extension_Elasticsearch extends Extension {
 

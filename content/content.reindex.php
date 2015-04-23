@@ -1,10 +1,6 @@
 <?php
 
-    require_once(TOOLKIT . '/class.administrationpage.php');
-    require_once(TOOLKIT . '/class.sectionmanager.php');
-    require_once(TOOLKIT . '/class.entrymanager.php');
-
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php');
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php';
 
     class contentExtensionElasticsearchReindex extends AdministrationPage {
 
@@ -26,7 +22,7 @@
 
             if($page === 1) {
                 // delete all documents in this index
-                $query = new Elastica_Query(array(
+                $query = new Elastica\Query(array(
                     'query' => array(
                         'match_all' => array()
                     )
@@ -35,8 +31,7 @@
             }
 
             // get new entries
-            $em = new EntryManager(Symphony::Engine());
-            $entries = $em->fetchByPage(
+            $entries = EntryManager::fetchByPage(
                 $page,
                 $type->section->get('id'),
                 (int)$config->{'reindex-batch-size'}, // page size

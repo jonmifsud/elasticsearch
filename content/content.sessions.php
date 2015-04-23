@@ -1,7 +1,7 @@
 <?php
 
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch_administrationpage.php');
-    require_once(EXTENSIONS . '/elasticsearch/lib/phpbrowscap/browscap/Browscap.php');
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch_administrationpage.php';
+    require_once EXTENSIONS . '/elasticsearch/vendor/autoload.php';
 
     class contentExtensionElasticSearchSessions extends ElasticSearch_AdministrationPage {
 
@@ -91,6 +91,7 @@
             // append table headings
             $tableHead[] = $this->__buildColumnHeader(__('Date'), 'date', 'desc');
             $tableHead[] = array(__('Query'), 'keywords');
+            $tableHead[] = array(__('Query (Raw)'), 'keywords');
             $tableHead[] = $this->__buildColumnHeader(__('Results'), 'results', 'desc');
             $tableHead[] = $this->__buildColumnHeader(__('Depth'), 'depth', 'desc');
             $tableHead[] = array(__('Session ID'));
@@ -105,7 +106,8 @@
 
             else {
 
-                $browscap = new Browscap(CACHE);
+                $browscap = new phpbrowscap\Browscap(CACHE);
+                $browscap->doAutoUpdate = false;
 
                 $alt = FALSE;
                 foreach ($rows as $row) {
@@ -122,7 +124,6 @@
                     foreach($searches as $i => $search) {
 
                         $r = array();
-                        //$r[] = Widget::TableData('', NULL, NULL, 3);
                         $r[] = Widget::TableData(
                             DateTimeObj::get(
                                 __SYM_DATETIME_FORMAT__,
@@ -131,14 +132,14 @@
                             'date'
                         );
 
-                        $keywords = $search['keywords'];
-                        $keywords_class = '';
-                        if ($keywords == '') {
-                            $keywords = __('None');
-                            $keywords_class = 'inactive';
-                        }
-
-                        $r[] = Widget::TableData(stripslashes($keywords), $keywords_class . ' keywords');
+                        $r[] = Widget::TableData(
+                            (empty($search['keywords']) ? __('None') : stripslashes($search['keywords'])),
+                            (empty($search['keywords']) ? 'inactive query' : 'query')
+                        );
+                        $r[] = Widget::TableData(
+                            (empty($search['keywords']) ? __('None') : htmlentities(stripslashes($search['keywords_raw']))),
+                            'inactive query'
+                        );
                         $r[] = Widget::TableData($search['results'], 'results');
                         $r[] = Widget::TableData($search['page'], 'depth');
 

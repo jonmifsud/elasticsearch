@@ -1,9 +1,7 @@
 <?php
 
-    require_once(TOOLKIT . '/class.datasource.php');
-    require_once(TOOLKIT . '/class.entrymanager.php');
-
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php');
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php';
+    require_once EXTENSIONS . '/elasticsearch/vendor/autoload.php';
 
     Class datasourceelasticsuggest extends Datasource{
 
@@ -46,9 +44,9 @@
 
             ElasticSearch::init();
 
-            $query_querystring = new Elastica_Query_QueryString();
+            $query_querystring = new Elastica\Query\QueryString();
             $query_querystring->setDefaultOperator('AND');
-            $query_querystring->setQueryString($params->keywords);
+            $query_querystring->setQuery($params->keywords);
 
             if($params->{'language'}) {
                 $fields = array();
@@ -60,17 +58,17 @@
                 $query_querystring->setFields(array('*.symphony_fulltext'));
             }
 
-            $query = new Elastica_Query($query_querystring);
+            $query = new Elastica\Query($query_querystring);
             // returns loads. let's say we search for "romeo" and there are hundreds of lines that contain
             // romeo but also the play title "romeo and juliet", the first 10 or 20 results might just be script lines
             // containing "romeo", so the play title will not be included. so return a big chunk of hits to give a
             // better chance of more different terms being in the result. a tradeoff of speed/hackiness over usefulness.
             $query->setLimit(1000);
 
-            $search = new Elastica_Search(ElasticSearch::getClient());
+            $search = new Elastica\Search(ElasticSearch::getClient());
             $search->addIndex(ElasticSearch::getIndex());
 
-            $filter = new Elastica_Filter_Terms('_type');
+            $filter = new Elastica\Filter\Terms('_type');
 
             // build an array of all valid section handles that have mappings
             $all_mapped_sections = array();
@@ -112,7 +110,7 @@
 
             //$autocomplete_fields = array_unique($autocomplete_fields);
 
-            $query->setFilter($filter);
+            $query->setPostFilter($filter);
 
             $query->setHighlight(array(
                 'fields' => $highlights,

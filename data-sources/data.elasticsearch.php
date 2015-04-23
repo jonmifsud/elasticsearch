@@ -1,9 +1,7 @@
 <?php
 
-    require_once(TOOLKIT . '/class.datasource.php');
-    require_once(TOOLKIT . '/class.entrymanager.php');
-
-    require_once(EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php');
+    require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php';
+    require_once EXTENSIONS . '/elasticsearch/vendor/autoload.php';
 
     Class datasourceelasticsearch extends Datasource{
 
@@ -55,11 +53,11 @@
 
             // a query_string search type in ES accepts common (Lucene) search syntax such as
             // prefixing terms with +/- and surrounding exact phrases with quotes
-            $query_querystring = new Elastica_Query_QueryString();
+            $query_querystring = new Elastica\Query\QueryString();
             // all terms are required
             $query_querystring->setDefaultOperator('AND');
             // pass in keywords
-            $query_querystring->setQueryString($params->keywords);
+            $query_querystring->setQuery($params->keywords);
             // only apply the search to fields mapped as multi-type with a sub-type named "symphony_fulltext"
             // this allows us to exclude fields from this generic full-site search but search them elsewhere
             if($params->{'language'}) {
@@ -73,20 +71,20 @@
             }
 
             // create the parent query object (a factory) into which the query_string is passed
-            $query = new Elastica_Query($query_querystring);
+            $query = new Elastica\Query($query_querystring);
             $query->setLimit($params->{'per-page'});
             // TODO: check this. should it be + 1?
             $query->setFrom($params->{'per-page'} * ($params->{'current-page'} - 1));
             $query->setSort(array($params->{'sort'} => $params->{'direction'}));
 
             // build a search object, this wraps an Elastica_Client and handles requests to and from the ElasticSearch server
-            $search = new Elastica_Search(ElasticSearch::getClient());
+            $search = new Elastica\Search(ElasticSearch::getClient());
             // search on our site index only (in case the server is running multiple indexes)
             $search->addIndex(ElasticSearch::getIndex());
 
             // create a new facet on the entry _type (section handle). this will return a list
             // of sections in which the matching entries reside, and a count of matches in each
-            $facet = new Elastica_Facet_Terms('filtered-sections');
+            $facet = new Elastica\Facet\Terms('filtered-sections');
             $facet->setField('_type');
             $query->addFacet($facet);
 
@@ -94,8 +92,8 @@
             // of the query they are attached to, so we want a new query that searches within the specified sections
             // but doesn't search on the keywords (so it finds everything). ES supports this with a match_all query
             // which Elastica creates by default when you create a plain query object
-            $query_all = new Elastica_Query();
-            $facet = new Elastica_Facet_Terms('all-sections');
+            $query_all = new Elastica\Query();
+            $facet = new Elastica\Facet\Terms('all-sections');
             $facet->setField('_type');
             $query_all->addFacet($facet);
 
@@ -130,7 +128,7 @@
             // match the criteria. they are fast and are cached by ES. we want to restrict the search
             // results to within the specified sections only, so we add a filter on the _type (section handle)
             // field. the filter is of type "terms" (an array of exact-match strings)
-            $filter = new Elastica_Filter_Terms('_type');
+            $filter = new Elastica\Filter\Terms('_type');
 
             // build an array of field handles which should be highlighted in search results, used for building
             // the excerpt on results pages. a field is marked as highlightable by giving it a "symphony_fulltext"
@@ -151,8 +149,8 @@
             }
 
             // add the section filter to both queries (keyword search and the all entries facet search)
-            $query->setFilter($filter);
-            $query_all->setFilter($filter);
+            $query->setPostFilter($filter);
+            $query_all->setPostFilter($filter);
 
             // configure highlighting for the keyword search
             $query->setHighlight(array(
@@ -216,7 +214,6 @@
             // if each entry is to have its full XML built and appended to the result,
             // create a new EntryManager for using later on
             if($config->{'build-entry-xml'} === 'yes') {
-                $em = new EntryManager(Frontend::instance());
                 $field_pool = array();
             }
 
@@ -240,7 +237,7 @@
                 // build and append entry data
                 // this was pinched from Symphony's datasource class
                 if($config->{'build-entry-xml'} === 'yes') {
-                    $e = reset($em->fetch($data->getId()));
+                    $e = reset(EntryManager::fetch($data->getId()));
                     $field_data = $e->getData();
                     foreach($field_data as $field_id => $values) {
                         if(!isset($field_pool[$field_id]) || !is_object($field_pool[$field_id])) {

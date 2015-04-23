@@ -1,0 +1,17 @@
+{
+    "name": "symphonists/elasticsearch",
+    "description": "Integrates the powerful Lucene-based search engine, ElasticSearch, with Symphony.",
+    "authors": [
+        {
+            "name": "Nick Dunn"
+        },
+        {
+            "name": "Brendan Abbott",
+            "email": "brendan@bloodbone.ws"
+        }
+    ],
+    "require": {
+        "ruflin/elastica": "~1.4.3.0",
+        "garetjax/phpbrowscap": "~2.0"
+    }
+}
