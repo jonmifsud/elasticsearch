@@ -3,6 +3,10 @@
     require_once EXTENSIONS . '/elasticsearch/lib/class.elasticsearch.php';
     require_once EXTENSIONS . '/elasticsearch/vendor/autoload.php';
 
+    require_once(TOOLKIT . '/class.datasource.php');
+    require_once(TOOLKIT . '/class.entrymanager.php');
+    
+
     Class datasourceelasticsearch extends Datasource{
 
         public $dsParamROOTELEMENT = 'elasticsearch';
@@ -71,7 +75,17 @@
             }
 
             // create the parent query object (a factory) into which the query_string is passed
-            $query = new Elastica\Query($query_querystring);
+
+            //function score supports custom scoring functions and we are interested in running a score by date
+            $query_functionScore = new Elastica\Query\FunctionScore();
+            // addDecayFunction(string  $function, string  $field, $origin, $scale, $offset = null, float  $decay = null, float  $weight = null, \Elastica\Filter\AbstractFilter  $filter = null)
+            // var_dump(date('Y-m-d\TH:i:sO'));die;
+            $query_functionScore->addDecayFunction('gauss','publish-date',date('Y-m-d\TH:i:sO'),'100d','100d',0.99);
+            $query_functionScore->setQuery($query_querystring);
+
+            // $query = new Elastica\Query($query_querystring);
+            $query = new Elastica\Query($query_functionScore);
+
             $query->setLimit($params->{'per-page'});
             // TODO: check this. should it be + 1?
             $query->setFrom($params->{'per-page'} * ($params->{'current-page'} - 1));
@@ -128,7 +142,9 @@
             // match the criteria. they are fast and are cached by ES. we want to restrict the search
             // results to within the specified sections only, so we add a filter on the _type (section handle)
             // field. the filter is of type "terms" (an array of exact-match strings)
-            $filter = new Elastica\Filter\Terms('_type');
+            $filter = new Elastica\Filter\BoolAnd();
+
+            $typeFilter = new Elastica\Filter\Terms('_type');
 
             // build an array of field handles which should be highlighted in search results, used for building
             // the excerpt on results pages. a field is marked as highlightable by giving it a "symphony_fulltext"
@@ -137,8 +153,8 @@
 
             // iterate over each valid section, adding it as a filter and finding any highlighted fields within
             foreach($sections as $section) {
-                // add these sections to the entry search
-                $filter->addTerm($section);
+                            // add these sections to the entry search
+                $typeFilter->addTerm($section);
                 // read the section's mapping JSON from disk
                 $mapping = json_decode(ElasticSearch::getTypeByHandle($section)->mapping_json, FALSE);
                 // find fields that have symphony_highlight
@@ -147,6 +163,21 @@
                     $highlights[] = array($field => (object)array());
                 }
             }
+
+            $filter->addFilter($typeFilter);
+
+            // 29 Sep 2014 8:02 pm
+
+            //lets try dates
+            $dateFilter = new Elastica\Filter\Range('publish-date', array(
+                    // "lte"=> "now"
+                    // "gte"=> "2014-09-29T00:00:00+02:00",
+                    // "lte"=> "2014-09-29T23:59:59+02:00",
+                    "lte"=> "now",
+                    "time_zone"=> "+2:00"
+                ));
+
+            $filter->addFilter($dateFilter);
 
             // add the section filter to both queries (keyword search and the all entries facet search)
             $query->setPostFilter($filter);
@@ -214,6 +245,7 @@
             // if each entry is to have its full XML built and appended to the result,
             // create a new EntryManager for using later on
             if($config->{'build-entry-xml'} === 'yes') {
+                $em = new EntryManager(Frontend::instance());
                 $field_pool = array();
             }
 
@@ -237,7 +269,7 @@
                 // build and append entry data
                 // this was pinched from Symphony's datasource class
                 if($config->{'build-entry-xml'} === 'yes') {
-                    $e = reset(EntryManager::fetch($data->getId()));
+                    $e = reset($em->fetch($data->getId()));
                     $field_data = $e->getData();
                     foreach($field_data as $field_id => $values) {
                         if(!isset($field_pool[$field_id]) || !is_object($field_pool[$field_id])) {
